@@ -8,7 +8,7 @@ Bunshin --- A shimbun implemrntion written in Perl
 package Bunshin;
 use strict;
 use vars qw($DEBUG $MYNAME $VERSION);
-$VERSION=do{my @r=(q$Revision: 1.2 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
+$VERSION=do{my @r=(q$Revision: 1.3 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
 $MYNAME = 'Bunshin';
 $DEBUG = 0;
 use FileHandle;
@@ -140,14 +140,14 @@ sub _make_a_msg ($@) {
   ;
   my $hdr = $msg->header;
   ## Originator and date
-    my $from = $hdr->field ('from')->add ($p{from_mail});
+    my $from = $hdr->field ('from')->add ($p{from_mail} || 'foo@bar.invalid');
     $from->display_name ($p{from_name}) if length $p{from_name};
     my $date = $hdr->field ('date');
     $p{date_year} ||= (gmtime)[5];
     $date->set_datetime (@p{qw/date_year date_month
       date_day date_hour date_minute date_second/},
       zone => $p{date_zone});
-    $hdr->add ('x-uri' => $p{from_uri}) if $p{from_uri};
+    $hdr->add (x_uri => $p{from_uri}) if $p{from_uri};
     if ($p{from_face}) {
       $msg->header->field ('x-face')->value ($p{from_face});
     } elsif ($p{faces}->{$p{from_mail}}) {
@@ -158,15 +158,24 @@ sub _make_a_msg ($@) {
   ## Message attribute
     if (length $p{msg_id}) {
       $hdr->add ('message-id' => $p{msg_id});
-    } else {
-      my $id_right = $p{msg_id_right} || $p{list_id};
+    } elsif ($p{msg_id_from} || $p{msg_id_right} || $p{list_id}) {
       my $c = $p{msg_count};
       $c = '.d'.(0+$date) unless defined $p{msg_count};
-      my $mid = sprintf '<msg%s.BS%%list@%s>', $c, $id_right;
-      $mid = sprintf '<msg%s.BS%%%s>', $c, $p{msg_id_from} if $p{msg_id_from};
+      my $mid;
+      if ($p{msg_id_from}) {
+        $mid = sprintf '<msg%s.BS%%%s%%%s>', $c, $p{list_id}, $p{msg_id_from};
+      } elsif ($p{msg_id_right}) {
+        $mid = sprintf '<msg%s.BS%%%s%%list@%s>', $c, $p{list_id}, $p{msg_id_right};
+      } else { #if ($p{list_id}) {
+        $mid = sprintf '<msg%s.BS%%list@%s>', $c, $p{list_id};
+      }
       $hdr->add (($DEBUG?'x-':'').'message-id' => $mid);
     }
-    $hdr->add (subject => $p{subject}) if length $p{subject};
+    if (length $p{subject}) {
+      $hdr->add (subject => $p{subject});
+    } elsif (length $p{DEFAULT_subject}) {
+      $hdr->add (subject => $p{DEFAULT_subject});
+    }
     my $a;
     for (grep {/^misc_/} keys %p) {
       $a = $hdr->field ('content-x-properties') unless ref $a;
@@ -188,8 +197,8 @@ sub _make_a_msg ($@) {
       $lid->value ($p{list_id});
       $lid->display_name ($p{list_name}) if length $p{list_name};
     }
-    $hdr->add ('x-mail-count' => $p{msg_count}) if defined $p{msg_count};
-    $hdr->add ('x-ml-info' => $p{list_info}) if defined $p{list_info};
+    $hdr->add (x_mail_count => $p{msg_count}) if defined $p{msg_count};
+    $hdr->add (x_ml_info => $p{list_info}) if defined $p{list_info};
     if ($p{base_uri}) {
       my $uri = $hdr->add (x_uri => '');
       $uri->value ($p{base_uri});
@@ -201,7 +210,7 @@ sub _make_a_msg ($@) {
         date_time	=> $date->unix_time,
         zone	=> $date->zone,
         fmt2str	=> $self->{fmt2str},
-      });
+      }, \%p);
       $hdr->add ('x-uri')->value ($urn);
     }
   ## Additional information
@@ -253,7 +262,7 @@ Boston, MA 02111-1307, USA.
 =head1 CHANGE
 
 See F<ChangeLog>.
-$Date: 2002/06/16 10:46:29 $
+$Date: 2002/06/20 11:36:32 $
 
 =cut
 

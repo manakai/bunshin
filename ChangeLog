@@ -1,3 +1,8 @@
+2002-06-20  wakaba <w@suika.fam.cx>
+
+	* Bunshin.pm (_make_a_msg): Message-id algorithm
+	is revised to avoid conflict.
+
 2002-06-16  wakaba <w@suika.fam.cx>
 
 	* Bunshin.pm: New module.
