@@ -1,17 +1,16 @@
 
 =head1 NAME
 
-Bunshin
+Bunshin --- A shimbun implemrntion written in Perl
 
 =cut
 
 package Bunshin;
 use strict;
 use vars qw($DEBUG $MYNAME $VERSION);
-$VERSION=do{my @r=(q$Revision: 1.1 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
+$VERSION=do{my @r=(q$Revision: 1.2 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
 $MYNAME = 'Bunshin';
 $DEBUG = 0;
-use Time::Local;
 use FileHandle;
 require Message::Entity;
 require Message::Util;
@@ -89,7 +88,6 @@ sub set_source ($%) {
     my $c = $self->{hook_code_conversion} || \&_code_conversion;
     local $/ = undef;
     $self->{source} = &$c ($self, $f->getline, \%option);
-    close SRC;
   } else {
     Carp::croak "set_source: $_[0]: Unsupported data source type";
   }
@@ -176,7 +174,7 @@ sub _make_a_msg ($@) {
       $name =~ tr/_/-/;
       if ($p{base_uri} && /uri/ && length $p{$_}) {
         require URI::WithBase;
-        $a->add ($name => URI::WithBase->new ($_, $p{base_uri})->abs);
+        $a->add ($name => URI::WithBase->new ($p{$_}, $p{base_uri})->abs);
       } else {
         $a->add ($name => $p{$_}) if length $p{$_};
       }
@@ -255,7 +253,7 @@ Boston, MA 02111-1307, USA.
 =head1 CHANGE
 
 See F<ChangeLog>.
-$Date: 2002/06/16 02:50:54 $
+$Date: 2002/06/16 10:46:29 $
 
 =cut
 
