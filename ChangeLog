@@ -1,3 +1,12 @@
+2002-07-24  Wakaba <w@suika.fam.cx>
+
+	* Bunshin.pm:
+	- (_get_resource): New.
+	- (set_source): Moved main process to _get_resource.
+	- (_get_resource, set_source): Set protocol's meta information
+	to $self->{meta_info}.
+	- (meta_information): New method.
+
 2002-06-20  wakaba <w@suika.fam.cx>
 
 	* Bunshin.pm (_make_a_msg): Message-id algorithm

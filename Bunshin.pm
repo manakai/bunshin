@@ -8,7 +8,7 @@ Bunshin --- A shimbun implemrntion written in Perl
 package Bunshin;
 use strict;
 use vars qw($DEBUG $MYNAME $VERSION);
-$VERSION=do{my @r=(q$Revision: 1.3 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
+$VERSION=do{my @r=(q$Revision: 1.4 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
 $MYNAME = 'Bunshin';
 $DEBUG = 0;
 use FileHandle;
@@ -67,8 +67,24 @@ sub set_elements ($$@) {
 sub set_source ($%) {
   my $self = shift;
   my %option = @_;
+  ($self->{source}, $self->{meta_info}) = $self->_get_resource (%option);
+  $self->default_parameter (base_uri => $option{uri}) if $option{uri};
+  	## BUG: Doesn't support redirection
+  if ($option{uri} || $option{file}) {
+    my $c = $self->{hook_code_conversion} || \&_code_conversion;
+    $self->{source} = &$c ($self, $self->{source}, \%option, $self->{meta_info});
+  }
+  $self->{source} =~ s/\x0D(?!\x0A)/\x0D\x0A/g;
+  $self->{source} =~ s/(?<!\x0D)\x0A/\x0D\x0A/g;
+  $self;
+}
+
+sub _get_resource ($%) {
+  my $self = shift;
+  my %option = @_;
+  my ($resource, $meta);
   if (defined $option{value}) {
-    $self->{source} = $option{value};
+    $resource = $option{value};
   } elsif ($option{uri}) {
     require Message::Field::UA;
     require LWP::UserAgent;
@@ -79,25 +95,24 @@ sub set_source ($%) {
     $lwp->agent ($ua->stringify);
     my $req = HTTP::Request->new (GET => $option{uri});
     my $res = $lwp->request ($req);
-    my $c = $self->{hook_code_conversion} || \&_code_conversion;
-    $self->{source} = &$c ($self, $res->content, \%option);
-    $self->default_parameter (base_uri => $option{uri});
+    $resource = $res->content;
+    $meta = parse Message::Header $res->headers_as_string,
+      -parse_all => 0, -format => 'http-response',
+    ;
   } elsif ($option{file}) {
     my $f = new FileHandle $option{file} => 'r';
     Carp::croak "set_source: $option{file}: $!" unless defined $f;
     my $c = $self->{hook_code_conversion} || \&_code_conversion;
     local $/ = undef;
-    $self->{source} = &$c ($self, $f->getline, \%option);
+    $resource = $f->getline;
   } else {
-    Carp::croak "set_source: $_[0]: Unsupported data source type";
+    Carp::croak "_get_resource: $_[0]: Unsupported data source type";
   }
-  $self->{source} =~ s/\x0D(?!\x0A)/\x0D\x0A/g;
-  $self->{source} =~ s/(?<!\x0D)\x0A/\x0D\x0A/g;
-  $self;
+  ($resource, $meta);
 }
 
-## $self->_code_conversion ($string, \%option)
-sub _code_conversion ($$\%) {
+## $self->_code_conversion ($string, \%option, $meta_info)
+sub _code_conversion ($$\%$) {
   $_[1];
 }
 
@@ -240,6 +255,20 @@ sub default_parameter ($@) {
   $self;
 }
 
+=head1 $meta = $b->meta_information
+
+Gets meta information from resource requesting protocol.
+Usually returned value is Message::Header object.
+When resource is getten via HTTP, its content is HTTP response
+header.
+
+=cut
+
+sub meta_information ($) {
+  my $self = shift;
+  $self->{meta_info};
+}
+
 =head1 LICENSE
 
 Copyright 2002 wakaba E<lt>w@suika.fam.cxE<gt>.
@@ -262,7 +291,7 @@ Boston, MA 02111-1307, USA.
 =head1 CHANGE
 
 See F<ChangeLog>.
-$Date: 2002/06/20 11:36:32 $
+$Date: 2002/07/24 12:12:34 $
 
 =cut
 
