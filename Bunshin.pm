@@ -8,7 +8,7 @@ Bunshin --- A shimbun implemrntion written in Perl
 package Bunshin;
 use strict;
 use vars qw($DEBUG $MYNAME $VERSION);
-$VERSION=do{my @r=(q$Revision: 1.4 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
+$VERSION=do{my @r=(q$Revision: 1.5 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
 $MYNAME = 'Bunshin';
 $DEBUG = 0;
 use FileHandle;
@@ -20,7 +20,7 @@ sub new ($;%) {
   my $class = shift;
   my $self = bless {}, $class;
   $self->{fmt2str} = Message::Util::make_clone
-    ($Message::Field::Date::DEFAULT{-fmt2str});
+    (\%Message::Field::Date::FMT2STR);
   $self;
 }
 
@@ -151,6 +151,7 @@ sub _make_a_msg ($@) {
     -fill_date	=> 0,
     -fill_msgid	=> 0,
     -fill_ua_name	=> 'x-shimbun-agent',
+    -format	=> 'news-usefor',
     -parse_all	=> 1,
   ;
   my $hdr = $msg->header;
@@ -199,6 +200,9 @@ sub _make_a_msg ($@) {
       if ($p{base_uri} && /uri/ && length $p{$_}) {
         require URI::WithBase;
         $a->add ($name => URI::WithBase->new ($p{$_}, $p{base_uri})->abs);
+      } elsif (/color/) {
+        $p{$_} = '#'.$p{$_} if $p{$_} =~ /^[A-Za-z0-9]{6}$/;
+        $a->add ($name => $p{$_}) if length $p{$_};
       } else {
         $a->add ($name => $p{$_}) if length $p{$_};
       }
@@ -220,12 +224,17 @@ sub _make_a_msg ($@) {
       $uri->display_name ($p{list_name}) if length $p{list_name};
     }
     if ($p{urn_template}) {
-      my $urn = $self->Message::Field::Date::_date2str ({
-        format_template	=> $p{urn_template},
-        date_time	=> $date->unix_time,
-        zone	=> $date->zone,
-        fmt2str	=> $self->{fmt2str},
-      }, \%p);
+      my $urn = $date->stringify (
+      	-format_macros	=> $self->{fmt2str},
+      	-format_template	=> $p{urn_template},
+      	-format_parameters	=> \%p,
+      );
+      #my $urn = $self->Message::Field::Date::_date2str ({
+      #  format_template	=> $p{urn_template},
+      #  date_time	=> $date->unix_time,
+      #  zone	=> $date->zone,
+      #  fmt2str	=> $self->{fmt2str},
+      #}, \%p);
       $hdr->add ('x-uri')->value ($urn);
     }
   ## Additional information
@@ -291,7 +300,7 @@ Boston, MA 02111-1307, USA.
 =head1 CHANGE
 
 See F<ChangeLog>.
-$Date: 2002/07/24 12:12:34 $
+$Date: 2002/08/29 12:10:59 $
 
 =cut
 

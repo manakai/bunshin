@@ -1,3 +1,12 @@
+2002-08-29  Wakaba <w@suika.fam.cx>
+
+	* Bunshin.pm:
+	- (make_msgs): Prepend '#' to misc_.*color.* property
+	value if desirable.  (There are HTML documents with
+	color name of 'HHHHHH' without '#':-<)
+	- Update Message::Field::Date interface with its latest
+	revision.
+
 2002-07-24  Wakaba <w@suika.fam.cx>
 
 	* Bunshin.pm:
