@@ -8,7 +8,7 @@ Bunshin --- A shimbun implemrntion written in Perl
 package Bunshin;
 use strict;
 use vars qw($DEBUG $MYNAME $VERSION);
-$VERSION=do{my @r=(q$Revision: 1.5 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
+$VERSION=do{my @r=(q$Revision: 1.6 $=~/\d+/g);sprintf "%d."."%02d" x $#r,@r};
 $MYNAME = 'Bunshin';
 $DEBUG = 0;
 use FileHandle;
@@ -49,6 +49,20 @@ sub set_hook_function ($$\&) {
   my $name = shift;
   my $function = shift;
   $self->{'hook_'.$name} = $function;
+}
+
+sub set_element_decoders ($%) {
+  my $self = shift;
+  my %list = @_;
+  for (keys %list) {
+    if ($list{$_} eq 'enentity_html') {
+      $list{$_} = \&Message::Util::enentity_html;
+    } elsif ($list{$_} eq 'deentity_html') {
+      $list{$_} = \&Message::Util::deentity_html;
+    ## TODO: escape_uri, unescape_uri
+    }
+  }
+  $self->{element_decoder} = %list;
 }
 
 sub set_format ($$\&) {
@@ -136,6 +150,11 @@ sub make_msgs ($) {
     my %p = %param;
     for my $i (0..$#{$self->{elements_message}}) {
       $p{$self->{elements_message}->[$i]} = ${$i+1};
+    }
+    for my $n (keys %{$self->{element_decoder}}) {
+      if ($p{$n} && ref $self->{element_decoder}->{$n}) {
+        $p{$n} = &{ $self->{element_decoder}->{$n} } ($p{$n});
+      }
     }
     my $msg = &$f ($self, %p);
     push @msg, $msg;
@@ -300,7 +319,7 @@ Boston, MA 02111-1307, USA.
 =head1 CHANGE
 
 See F<ChangeLog>.
-$Date: 2002/08/29 12:10:59 $
+$Date: 2002/09/10 23:37:43 $
 
 =cut
 
